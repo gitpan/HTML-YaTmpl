@@ -10,7 +10,7 @@ use IO::File ();
 use File::Spec ();
 use Errno ();
 
-our $VERSION='1.5';
+our $VERSION='1.6';
 
 #$SIG{INT}=sub {
 #  use Carp 'cluck';
@@ -539,12 +539,17 @@ sub _make_one_param {
 
   if( ref($p) eq 'ARRAY' ) {
     my @pp=$I->_parse_cached( $p->[1] );
-    my $pl=[undef];
+    my $string='';
+    my $pl=[];
     my $array=0;
     foreach my $ve (@pp) {
       if( !defined( $ve->[0] ) ) { # text element
-	foreach my $s (@$pl) {
-	  $s.=$ve->[4];
+	if( $array ) {
+	  foreach my $s (@$pl) {
+	    $s.=$ve->[4];
+	  }
+	} else {
+	  $string.=$ve->[4];
 	}
 	next;
       }
@@ -557,10 +562,7 @@ sub _make_one_param {
 	#use Data::Dumper; warn "_eval_var returns ", Dumper($x);
       }
       if( ref($x) eq 'ARRAY' ) {
-	if( @{$pl}==1 and !defined($pl->[0]) ) { # pl is not changed yet
-	  # we can simply set $pl to $x
-	  $pl=$x;
-	} else {
+	if( $array ) {		# schon array mode ==> kreuzprodukt
 	  my $npl;
 	  foreach my $s (@$pl) {
 	    foreach my $v (@{$x}) {
@@ -568,18 +570,28 @@ sub _make_one_param {
 	    }
 	  }
 	  $pl=$npl;
+	} elsif( length( $string ) ) { # noch kein array mode aber $string
+	  local $_;	       	       # nicht leer
+	  $pl=[map {$string.$_} @$x];
+	  undef $string;	# $string is useless in array mode
+				# save a little memory
+	} else {		# noch kein array mode und $string immer noch
+	  $pl=$x;		# leer
 	}
-	$array=1;
-	push @{$pl}, undef if( @{$pl}<1 );
+	$array=1;		# turn on array mode
       } else {
-	foreach my $s (@$pl) {
-	  $s.=$x;
+	if( $array ) {
+	  foreach my $s (@$pl) {
+	    $s.=$x;
+	  }
+	} else {
+	  $string.=$x;
 	}
       }
     }
     return ($I->_eval_list( $v, $h,
 			    $I->_parse_cached(defined $p->[0] ? $p->[0] : '') )
-	    =>($array ? $pl : $pl->[0]));
+	    =>($array ? $pl : $string));
   } else {
     if( $p eq ':inherit' or $p eq ':inheritparams' ) {
       return (%{$h});
