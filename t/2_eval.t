@@ -6,7 +6,7 @@
 # change 'tests => 1' to 'tests => last_test_to_print';
 
 use warnings;
-use Test::More tests => 8;
+use Test::More tests => 12;
 use HTML::YaTmpl;
 
 #########################
@@ -16,10 +16,17 @@ use HTML::YaTmpl;
 
 my $t=HTML::YaTmpl->new;
 
+sub t {
+  my ($got, $expected, $name)=@_;
+  print "# expected: '$got'\n";
+  print "# got: '$got'\n";
+  ok $got eq $expected, $name;
+}
+
 ok( $t, 'new object' );
 
 $t->template="aaaaaa";
-ok(( $t->evaluate eq "aaaaaa" )=>'no subst');
+t $t->evaluate, "aaaaaa", 'no subst';
 
 $t->template="a<=abc/>a<=abc code=\"<:/>\"/>a<=xyz/>a<=xyz/>a";
 ok(( $t->evaluate( abc=>'hallo', xyz=>'bello' ) eq
@@ -94,10 +101,22 @@ apre:.HEINZ.::.MARTIN.::.OTTO.:posta
 EOF
 
 $t->template='a<=list><:for a="<: $v->{a} />" b="<:/>"><=a/><=b><: $v->{b} /></=b></:for></=list>b';
-ok(( $t->evaluate( list=>[
-			  +{a=>'a1', b=>'b1'},
-			  +{a=>'a2', b=>'b2'},
-			 ] ) eq "aa1b1a2b2b" )=>'list of hash values');
+t $t->evaluate( list=>[
+		       +{a=>'a1', b=>'b1'},
+		       +{a=>'a2', b=>'b2'},
+		      ] ), "aa1b1a2b2b", 'list of hash values';
+
+$t->template='a<=scalar type=given>blub</=scalar>b';
+t $t->evaluate( scalar=>'x' ), 'ablubb', 'type=given with non-empty scalar';
+
+$t->template='a<=scalar type=given>blub</=scalar>b';
+t $t->evaluate( scalar=>'' ), 'ab', 'type=given with empty scalar';
+
+$t->template='a<=list type=given>blub</=list>b';
+t $t->evaluate( list=>['x', 'y'] ), 'ablubb', 'type=given with non-empty list';
+
+$t->template='a<=list type=given>blub</=list>b';
+t $t->evaluate( list=>[] ), 'ab', 'type=given with empty list';
 
 # Local Variables:
 # mode: cperl

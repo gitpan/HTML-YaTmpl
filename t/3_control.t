@@ -6,8 +6,9 @@
 # change 'tests => 1' to 'tests => last_test_to_print';
 
 use warnings;
-use Test::More tests => 2;
+use Test::More tests => 4;
 use HTML::YaTmpl;
+use Compress::Zlib ();
 
 #########################
 
@@ -69,7 +70,30 @@ ok( do{ local $/; local *F;
 	 unlink 'out.html')[0]},
     'checking out.html' );
 
-#ok(1);
+$t->compress='.gz';
+
+ok( $t->evaluate_to_file( 'out.html',
+			  title=>'Opi\'s Super Test Document',
+			  links=>[[link1=>'link1.html'],
+				  [link2=>'link2.html'],
+				  [link3=>'link3.html'],
+				  [link4=>'link4.html'],
+				  [link5=>'link5.html'],
+				  [link6=>'link6.html'],
+				 ],
+			  thema=>'some fruits',
+			  fruits=>[[apple=>'round'],
+				   [pear=>'pear-shaped'],
+				   [egg=>'ovaliform'],
+				   [plum=>'ovaliform'],
+				  ],
+			), 'writing out.html.gz' );
+
+ok( do{ local $/; local *F;
+	((open F, '<out.html.gz' and Compress::Zlib::memGzip $html eq <F>),
+	 close F,
+	 unlink 'out.html.gz')[0]},
+    'checking out.html.gz' );
 
 # Local Variables:
 # mode: cperl

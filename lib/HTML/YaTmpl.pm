@@ -4,13 +4,17 @@ use warnings;
 no warnings 'uninitialized';
 use HTML::YaTmpl::_parse;
 use Class::Member::HASH qw{template file path package _extra errors onerror
-			   eprefix no_eval_cache no_parse_cache _macros};
+			   eprefix no_eval_cache no_parse_cache _macros
+			   compress debug
+			   -CLASS_MEMBERS};
 use Config ();
 use IO::File ();
 use File::Spec ();
 use Errno ();
+use Compress::Zlib ();
 
-our $VERSION='1.7';
+our $VERSION='1.8';
+our @CLASS_MEMBERS;
 
 #$SIG{INT}=sub {
 #  use Carp 'cluck';
@@ -28,7 +32,13 @@ sub _report_error {
   my $eval=shift;
   my $x=join( ' ', 'ERROR', length $I->eprefix?$I->eprefix:() ).' ';
   if( length( $eval ) ) {
-    $x.="while eval( $eval ): ";
+    if( $@=~/\bline \d+\b/ ) {
+      my $nr=2;
+      $eval=~s/\n/sprintf "\n%04d: ", $nr++/ge;
+      $x.="while eval( \n0001: $eval\n): ";
+    } else {
+      $x.="while eval( $eval ): ";
+    }
   } else {
     $x.=": ";
   }
@@ -49,8 +59,7 @@ sub new {
   my %o=@_;
 
   if( ref($parent) ) {
-    foreach my $m (qw{template package file path onerror errors eprefix
-		      no_eval_cache no_parse_cache}) {
+    foreach my $m (@CLASS_MEMBERS) {
       $I->$m=$parent->$m;
     }
   } else {
@@ -61,8 +70,7 @@ sub new {
   }
   $I->package=(caller)[0];
   $I->errors=[];
-  foreach my $m (qw{template package file path onerror errors eprefix
-		    no_eval_cache no_parse_cache}) {
+  foreach my $m (@CLASS_MEMBERS) {
     $I->$m=$o{$m} if( exists $o{$m} );
   }
 
@@ -131,46 +139,42 @@ sub _fill_in {
   my $gsm=shift;
   my $h=shift;
 
-  if( ref($v) eq 'ARRAY' ) {
-    my @list=@{$v};
-    foreach my $e (@{$gsm}) {
-      if( length( $e->[1] ) ) {
-	if( $e->[0] eq 'grep' ) {
-	  my $x=('sub { package '.$I->package.';use strict;'.$e->[1].'}');
-	  $x=$I->__insert_ecache( $x, $e->[1], 1 );
-	  @list=grep( &$x, @list ) if( ref($x) eq 'CODE' );
-	} elsif( $e->[0] eq 'map' ) {
-	  my $x=('sub { package '.$I->package.';use strict;'.$e->[1].'}');
-	  $x=$I->__insert_ecache( $x, $e->[1], 1 );
-	  @list=map( &$x, @list ) if( ref($x) eq 'CODE' );
-	} elsif( $e->[0] eq 'sort' ) {
-	  my $x=('sub { use strict;'.$e->[1].'}');
-	  $x=$I->__insert_ecache( $x, $e->[1], 1 );
-	  @list=sort( $x @list ) if( ref($x) eq 'CODE' );
-	}
+  my @list=@{$v};
+  foreach my $e (@{$gsm}) {
+    if( length( $e->[1] ) ) {
+      if( $e->[0] eq 'grep' ) {
+	my $x=('sub { package '.$I->package.';use strict;'.$e->[1].'}');
+	$x=$I->__insert_ecache( $x, $e->[1], 1 );
+	@list=grep( &$x, @list ) if( ref($x) eq 'CODE' );
+      } elsif( $e->[0] eq 'map' ) {
+	my $x=('sub { package '.$I->package.';use strict;'.$e->[1].'}');
+	$x=$I->__insert_ecache( $x, $e->[1], 1 );
+	@list=map( &$x, @list ) if( ref($x) eq 'CODE' );
+      } elsif( $e->[0] eq 'sort' ) {
+	my $x=('sub { use strict;'.$e->[1].'}');
+	$x=$I->__insert_ecache( $x, $e->[1], 1 );
+	@list=sort( $x @list ) if( ref($x) eq 'CODE' );
       }
     }
-
-    my @res;
-    push @res, $I->_eval_list( undef, $h, @{$pre} ) if( @{$pre} );
-    if( @list>=1 ) {
-      push @res, $I->_eval_list( $list[0], $h, @{$first} );
-    }
-    if( @list ) {
-      for( my $i=1; $i<@list-1; $i++ ) {
-	push @res, $I->_eval_list( $list[$i], $h, @{$clist} );
-      }
-    } else {
-      push @res, $I->_eval_list( undef, $h, @{$clist} );
-    }
-    if( @list>=2 ) {
-      push @res, $I->_eval_list( $list[$#list], $h, @{$last} );
-    }
-    push @res, $I->_eval_list( undef, $h, @{$post} ) if( @{$post} );
-    return \@res;
-  } else {
-    return $I->_eval_list( $v, $h, @{$clist} );
   }
+
+  my @res;
+  push @res, $I->_eval_list( undef, $h, @{$pre} ) if( @{$pre} );
+  if( @list>=1 ) {
+    push @res, $I->_eval_list( $list[0], $h, @{$first} );
+  }
+  if( @list ) {
+    for( my $i=1; $i<@list-1; $i++ ) {
+      push @res, $I->_eval_list( $list[$i], $h, @{$clist} );
+    }
+  } else {
+    push @res, $I->_eval_list( undef, $h, @{$clist} );
+  }
+  if( @list>=2 ) {
+    push @res, $I->_eval_list( $list[$#list], $h, @{$last} );
+  }
+  push @res, $I->_eval_list( undef, $h, @{$post} ) if( @{$post} );
+  return \@res;
 }
 
 sub _eval_var {
@@ -180,6 +184,7 @@ sub _eval_var {
 
   local $_;
   my $type=_param( type=>$el );
+  my $given=0;
   if( length $type ) {
     $type=lc $type;
     my $found=0;
@@ -189,6 +194,13 @@ sub _eval_var {
 		     (ref( $h->{$el->[1]} ) eq 'ARRAY' and
 		      @{$h->{$el->[1]}}==0) or
 		     length( "$h->{$el->[1]}" )==0 );
+      } elsif( $t eq 'given' ) {
+	$found++ if( exists $h->{$el->[1]} and
+		     ((ref( $h->{$el->[1]} ) eq 'ARRAY' and
+		       @{$h->{$el->[1]}}>0) or
+		      (ref( $h->{$el->[1]} ) ne 'ARRAY' and
+		       length "$h->{$el->[1]}")) );
+	$given++;
       } elsif( $t eq 'array' ) {
 	$found++ if( exists $h->{$el->[1]} and
 		     ref( $h->{$el->[1]} ) eq 'ARRAY' and
@@ -261,9 +273,13 @@ sub _eval_var {
   @first=@clist unless( @first );
   @last=@clist unless( @last );
 
-  return $I->_fill_in( $h->{$el->[1]},
-		       \@clist, \@first, \@last, \@pre, \@post, \@gsm,
-		       $h );
+  if( $given or ref($h->{$el->[1]}) ne 'ARRAY' ) {
+    return $I->_eval_list( $h->{$el->[1]}, $h, @clist );
+  } else {
+    return $I->_fill_in( $h->{$el->[1]},
+			 \@clist, \@first, \@last, \@pre, \@post, \@gsm,
+			 $h );
+  }
 }
 
 { my %ecache;
@@ -688,14 +704,20 @@ sub evaluate {
 
   $I->_macros={} unless( defined $I->_macros );
   my $rc=$I->_eval_list( undef, $h, $I->_parse_cached );
-  return $rc;
+
+  if( $I->compress=~/gz$/ ) {
+    return Compress::Zlib::memGzip $rc;
+  } else {
+    return $rc;
+  }
 }
 
 sub evaluate_to_file {
   my $I=shift;
   my $fh=shift;
 
-  my $text=$I->evaluate( @_ );
+  my $text;
+  $text=$I->evaluate( @_ );
 
   if( UNIVERSAL::isa($fh, 'GLOB') ) {
     return print $fh $text;
@@ -707,6 +729,11 @@ sub evaluate_to_file {
     return $fh->print( $text );
   }
 
+  if( $I->compress=~/gz$/ ) {
+    my $ext=$I->compress;
+    $fh=~s/\Q$ext\E$//;
+    $fh.=$ext;
+  }
   $fh=IO::File->new( $fh, 'w' ) or return;
   print $fh $text or return;
   return 1;

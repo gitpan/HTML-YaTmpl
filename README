@@ -79,6 +79,26 @@ DESCRIPTION
       errors [optional]
         see ERROR HANDLING below
 
+      compress [optional]
+        This attribute let you choose a compression method given by a file
+        name suffix. By now only "gz" is defined.
+
+        "evaluate()" returns compressed output. "evaluate_to_file()" writes
+        compressed output. The output file name is extented with a suffix
+        indicating the compression method.
+
+        Only the tailing characters of the given string are evaluated to
+        select the compression method but the complete string is used as
+        file name suffix. Thus:
+
+         $t->compress='.gz' or
+         $t->compress='-gz' or
+         $t->compress='gz'
+
+        all select the "gzip" compression method. But "$t->evaluate_to_file(
+        "out.html" )" will write "out.html.gz" or "out.html-gz" or
+        "out.htmlgz" respectivly.
+
       If the constructor is called as instance method rather than as class
       method the new object inherits all attributes from the old instance.
       Naturally, explicitely named attributes are overridden.
@@ -94,6 +114,7 @@ DESCRIPTION
     path
     package
     no_eval_cache
+    compress
       see new() above
 
     onerror
@@ -267,7 +288,7 @@ TEMPLATE SYNTAX AND EVALUATION
     value it sort of evaluates "<=var/>" for each array element and
     concatenates the results. But you can specify that a variable
     substitution should be done only if the provided value is of a
-    particular type. 3 such types are available
+    particular type. 4 such types are available
 
     scalar
       only if the provided value is a non-empty scalar (ref() does not
@@ -283,6 +304,14 @@ TEMPLATE SYNTAX AND EVALUATION
       a value is empty if it is not a scalar nor an array as described
       above, i.e. if it is either an empty string or an array without any
       element.
+
+    given
+      a value is given if it is a non-empty array or string. If this type is
+      specified special list handling is turned off. It is usefull if you
+      want for example generate a link list to array items that are
+      processed in detail elsewhere. For example a table should be printed
+      somewhere on a page and on top of that page a shortcut link to that
+      table should be printed but only if the table is not empty.
 
     The template
 
@@ -302,6 +331,14 @@ TEMPLATE SYNTAX AND EVALUATION
      <=var type=scalar,array/>
 
     is evaluated if "var" is an array or a scalar but not if it's empty.
+
+    Further,
+
+     <=var type=given>Link</=var>
+
+    evaluates to "Link" if "var" is a non-empty list or a non-empty string.
+    Even if "var" is a list containing multiple values only one occurence of
+    "Link" is substituted.
 
    Modifying the substituted value on the fly
     There are cases when it would be really useful to modify the substituted

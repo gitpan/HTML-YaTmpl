@@ -28,3 +28,6 @@ Revision history for Perl extension HTML::YaTmpl.
                   </=list>
 	  is now working properly when "list" is a list of HASHes. Before
 	  "b" was passed as a string: "HASH(0x804cc80)"
+
+1.8 Sun Jan  2 11:04:58 CET 2005
+	- compressed output

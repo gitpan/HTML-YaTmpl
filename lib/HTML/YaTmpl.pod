@@ -92,6 +92,27 @@ clear_cache() to clear that cache from time to time.
 
 see L<ERROR HANDLING|/"ERROR HANDLING"> below
 
+=item B<compress> [optional]
+
+This attribute let you choose a compression method given by a file name
+suffix. By now only C<gz> is defined.
+
+C<evaluate()> returns compressed output. C<evaluate_to_file()> writes
+compressed output. The output file name is extented with a suffix indicating
+the compression method.
+
+Only the tailing characters of the given string are evaluated to select
+the compression method but the complete string is used as file name suffix.
+Thus:
+
+ $t->compress='.gz' or
+ $t->compress='-gz' or
+ $t->compress='gz'
+
+all select the C<gzip> compression method. But
+C<$t-E<gt>evaluate_to_file( "out.html" )> will write C<out.html.gz> or
+C<out.html-gz> or C<out.htmlgz> respectivly.
+
 =back
 
 If the constructor is called as instance method rather than as class method
@@ -118,6 +139,8 @@ sets the attribute value.
 =item B<package>
 
 =item B<no_eval_cache>
+
+=item B<compress>
 
 see L<new()|/"Constructor"> above
 
@@ -344,7 +367,7 @@ scalar to achieve the same result.
 How does this work? If evaluate receives an ARRAY ref as a variable's value
 it sort of evaluates C<< <=var/> >> for each array element and concatenates
 the results. But you can specify that a variable substitution should be done
-only if the provided value is of a particular type. 3 such types are available
+only if the provided value is of a particular type. 4 such types are available
 
 =over 2
 
@@ -364,6 +387,15 @@ Otherwise an empty string is substitued.
 
 a value is empty if it is not a scalar nor an array as described above, i.e.
 if it is either an empty string or an array without any element.
+
+=item B<given>
+
+a value is given if it is a non-empty array or string. If this type is
+specified special list handling is turned off. It is usefull if you want
+for example generate a link list to array items that are processed in detail
+elsewhere. For example a table should be printed somewhere on a page and
+on top of that page a shortcut link to that table should be printed but
+only if the table is not empty.
 
 =back
 
@@ -385,6 +417,14 @@ concatenated with a comma (,):
  <=var type=scalar,array/>
 
 is evaluated if C<var> is an array or a scalar but not if it's empty.
+
+Further,
+
+ <=var type=given>Link</=var>
+
+evaluates to C<Link> if C<var> is a non-empty list or a non-empty string.
+Even if C<var> is a list containing multiple values only one occurence of
+C<Link> is substituted.
 
 =head3 Modifying the substituted value on the fly
 
