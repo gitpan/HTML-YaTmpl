@@ -15,3 +15,4 @@ t/2_eval.t
 t/3_control.t
 t/4_cache.t
 t/5_fruits.t
+META.yml                                 Module meta-data (added by MakeMaker)

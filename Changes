@@ -12,3 +12,6 @@ Revision history for Perl extension HTML::YaTmpl.
 
 1.3  Fri Nov  7 18:41:27 CET 2003
 	- macros, <:set> outside a <:for> or similar scope.
+
+1.4  Sun Nov  9 18:41:07 CET 2003
+	- better error handling for open() on directories

@@ -741,12 +741,12 @@ EOF
 $t->clear_errors;
 
 SKIP: {
- skip "ENOENT or EISDIR do not exist or Errno or File::Spec is not installed",
-      2
+ skip "ENOENT not defined",
+      1
    unless( eval {
      require Errno;
      require File::Spec;
-     exists($!{ENOENT}) and exists($!{EISDIR}) and exists($!{EACCES});
+     exists($!{ENOENT});
    } );
 
  $!=&Errno::ENOENT;
@@ -761,6 +761,16 @@ EOF
  ok( $@=~/^\QERROR while eval( <:include notexists.tmpl> ): $msg\E/,
      'including non-existing file' );
  $t->clear_errors;
+}
+
+SKIP: {
+ skip "EISDIR or EACCES not defined",
+      1
+   unless( eval {
+     require Errno;
+     require File::Spec;
+     exists($!{EISDIR}) or exists($!{EACCES});
+   } );
 
  my $dir=File::Spec->curdir;
  $!=&Errno::EISDIR;

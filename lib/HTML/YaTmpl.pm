@@ -5,11 +5,12 @@ no warnings 'uninitialized';
 use HTML::YaTmpl::_parse;
 use Class::Member::HASH qw{template file path package _extra errors onerror
 			   eprefix no_eval_cache no_parse_cache _macros};
-use Config;
-use IO::File;
-use File::Spec;
+use Config ();
+use IO::File ();
+use File::Spec ();
+use Errno ();
 
-our $VERSION='1.3';
+our $VERSION='1.4';
 
 #$SIG{INT}=sub {
 #  use Carp 'cluck';
@@ -78,13 +79,23 @@ sub open {
   $I->path=$o{path} if( exists $o{path} );
   local *F;
   local $/;
+  if( -d $I->file ) {
+    (exists($!{EISDIR}) and $!=&Errno::EISDIR) or
+    (exists($!{EACCES}) and $!=&Errno::EACCES);
+    return;
+  }
   open F, '<'.$I->file or do {
     my $rc=0;
     unless( File::Spec->file_name_is_absolute( $I->file ) ) {
       foreach my $el (@{$I->path||[]}) {
 	next unless( length $el );
 	$el=~s!/*$!!;		# strip trailing slash if any
-	if( open F, '<'.File::Spec->catfile( $el, $I->file ) ) {
+	my $f=File::Spec->catfile( $el, $I->file );
+	if( -d $f ) {
+	  (exists($!{EISDIR}) and $!=&Errno::EISDIR) or
+	  (exists($!{EACCES}) and $!=&Errno::EACCES);
+	  last;
+	} elsif( open F, '<'.$f ) {
 	  $rc=1;
 	  last;
 	}
@@ -93,11 +104,7 @@ sub open {
     $rc;
   } or return;
 
-  # this is a hack to work around a bug at least in 5.8.0: <> returns
-  # '' instead of "undef" if a directory is being read from in slurp mode.
-  $!=0;
   $I->template=<F>;
-  undef $I->template if( $! != 0 );
   close F;
   return unless( defined $I->template );
   return $I;
