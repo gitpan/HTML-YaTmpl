@@ -1,0 +1,8 @@
+Revision history for Perl extension HTML::YaTmpl.
+
+1.0  Mon Sep 29 09:40:04 CEST 2003
+	- initial version as HTML::Tmpl
+
+1.1  Fri Oct 31 19:47:41 CET 2003
+	- renamed to HTML::YaTmpl due to a name conflict on cpan
+	- a few minor changes regarding <:include>
