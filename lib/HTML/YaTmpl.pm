@@ -10,7 +10,7 @@ use IO::File ();
 use File::Spec ();
 use Errno ();
 
-our $VERSION='1.6';
+our $VERSION='1.7';
 
 #$SIG{INT}=sub {
 #  use Carp 'cluck';
@@ -585,7 +585,11 @@ sub _make_one_param {
 	    $s.=$x;
 	  }
 	} else {
-	  $string.=$x;
+	  if( length $string ) {
+	    $string.=$x;
+	  } else {
+	    $string=$x;
+	  }
 	}
       }
     }

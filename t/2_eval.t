@@ -6,7 +6,7 @@
 # change 'tests => 1' to 'tests => last_test_to_print';
 
 use warnings;
-use Test::More tests => 7;
+use Test::More tests => 8;
 use HTML::YaTmpl;
 
 #########################
@@ -92,6 +92,12 @@ apre:KLAUS::HEINZ::OTTO::MARTIN:posta
 aa
 apre:.HEINZ.::.MARTIN.::.OTTO.:posta
 EOF
+
+$t->template='a<=list><:for a="<: $v->{a} />" b="<:/>"><=a/><=b><: $v->{b} /></=b></:for></=list>b';
+ok(( $t->evaluate( list=>[
+			  +{a=>'a1', b=>'b1'},
+			  +{a=>'a2', b=>'b2'},
+			 ] ) eq "aa1b1a2b2b" )=>'list of hash values');
 
 # Local Variables:
 # mode: cperl
