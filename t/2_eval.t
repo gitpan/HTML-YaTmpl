@@ -5,6 +5,7 @@
 
 # change 'tests => 1' to 'tests => last_test_to_print';
 
+use warnings;
 use Test::More tests => 7;
 use HTML::YaTmpl;
 
@@ -34,13 +35,18 @@ ok(( $t->evaluate( abc=>'hallo', xyz=>'bello' ) eq
      "a:Hallo:a:HALLO:a\nb:Bello:b:BELLO:b\nb:Bello:b:BELLO:b\n" )
    =>'perl eval');
 
-$x::sub=sub {
-  ucfirst shift;
-};
+{ no warnings 'once';
+  $x::sub=sub {
+    ucfirst shift;
+  };
+  sub x::my_ucfirst {
+    ucfirst shift;
+  }
+}
 
 $t->package='x';
 $t->template=<<'EOF';
-a<=abc code=":<: $x::sub->($v) />:"/>a<=abc>:<: my @x=(1=>2); uc $v />:</=abc>a
+a<=abc code=":<: my_ucfirst($v) />:"/>a<=abc>:<: my @x=(1=>2); uc $v />:</=abc>a
 b<=xyz code="<:$x::sub->(\":\\u$v:\")/>"/>b<=xyz><:':'."\U$v".':'/></=xyz>b
 EOF
 

@@ -1,5 +1,7 @@
 package HTML::YaTmpl;
 use strict;
+use warnings;
+no warnings 'uninitialized';
 use HTML::YaTmpl::_parse;
 use Class::Member::HASH qw{template file path package _extra errors onerror
 			   eprefix no_eval_cache no_parse_cache _macros};
@@ -7,7 +9,7 @@ use Config;
 use IO::File;
 use File::Spec;
 
-our $VERSION='1.1';
+our $VERSION='1.2';
 
 #$SIG{INT}=sub {
 #  use Carp 'cluck';
@@ -32,7 +34,7 @@ sub _report_error {
   $x.=shift || $@;
 
   push @{$I->errors}, $x;
-  die $x if( $I->onerror eq 'die' );
+  die $x."\n" if( $I->onerror eq 'die' );
   return $x if( $I->onerror eq 'output' );
   return $I->onerror->( $x ) if( ref($I->onerror) eq 'CODE' );
   warn $x if( $I->onerror eq 'warn' );

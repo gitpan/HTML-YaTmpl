@@ -1,3 +1,4 @@
+use warnings;
 use Test::More tests => 33;
 use HTML::YaTmpl;
 my $t=HTML::YaTmpl->new( onerror=>'die', path=>['templates'] );
@@ -423,6 +424,9 @@ EOF
  (PRE post1 BETWEEN post2 POST)
 EOF
 
+SKIP: {
+skip "Math::BigInt not installed", 1 unless eval { require Math::BigInt; };
+
 x( 'square and cube numbers and factorials',
    <<'EOF',
  <:>
@@ -585,6 +589,7 @@ EOF
      </table>
  </body></html>
 EOF
+}				# SKIP
 
 x( '<:for> with 2 4 element lists with <:set>',
    <<'EOF',
@@ -725,7 +730,7 @@ x( 'thumbnails',
 EOF
    <<'EOF' );
   
-   <a href="orig/img321.jpg><img src="img321.jpg"></a>
+   <a href="orig/img321.jpg"><img src="img321.jpg"></a>
  
 
   
@@ -733,30 +738,47 @@ EOF
  
 
 EOF
-
 $t->clear_errors;
-eval {
-x( 'including non-existing file',
-   <<'EOF',
+
+SKIP: {
+ skip "ENOENT or EISDIR do not exist or Errno or File::Spec is not installed",
+      2
+   unless( eval {
+     require Errno;
+     require File::Spec;
+     exists($!{ENOENT}) and exists($!{EISDIR}) and exists($!{EACCES});
+   } );
+
+ $!=&Errno::ENOENT;
+ my $msg="$!";
+ $!=0;
+ eval {
+   $t->template=<<'EOF',
 <:include notexists.tmpl/>
 EOF
-   <<'EOF' );
-EOF
-};
-ok( $@=~/^\QERROR while eval( <:include notexists.tmpl> ): No such file or directory\E/,
-    'including non-existing file' );
-$t->clear_errors;
+   $t->evaluate;
+ };
+ ok( $@=~/^\QERROR while eval( <:include notexists.tmpl> ): $msg\E/,
+     'including non-existing file' );
+ $t->clear_errors;
 
-eval {
-x( 'including directory',
-   <<'EOF',
-<:include "/tmp"/>
+ my $dir=File::Spec->curdir;
+ $!=&Errno::EISDIR;
+ $msg="$!";
+ $!=&Errno::EACCES;
+ my $msg1="$!";
+ $!=0;
+ eval {
+   $t->template=<<"EOF",
+<:include "$dir"/>
 EOF
-   <<'EOF' );
-EOF
-};
-ok( $@=~/^\QERROR while eval( <:include \/tmp> ): Is a directory\E/,
-    'including directory' );
+   $t->evaluate;
+ };
+ ok( $@=~/^\QERROR while eval( <:include $dir> ): $msg\E/ or
+     $@=~/^\QERROR while eval( <:include $dir> ): $msg1\E/ ,
+     'including directory' );
+ $t->clear_errors;
+}
 
 __END__
 

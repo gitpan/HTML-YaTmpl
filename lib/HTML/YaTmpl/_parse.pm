@@ -1,5 +1,7 @@
 package HTML::YaTmpl;
 use strict;
+use warnings;
+no warnings 'uninitialized';
 use Config;
 
 our $VERSION='1.0';
