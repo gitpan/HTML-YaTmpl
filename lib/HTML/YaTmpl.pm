@@ -9,7 +9,7 @@ use Config;
 use IO::File;
 use File::Spec;
 
-our $VERSION='1.2';
+our $VERSION='1.3';
 
 #$SIG{INT}=sub {
 #  use Carp 'cluck';
@@ -425,7 +425,7 @@ sub _eval_control {
     my $file;
     foreach my $f (@{$el->[2]}) {
       if( !ref($f) and length($f) ) {
-	$file=$I->_eval_list( undef, $h, $I->_parse_cached($f) );
+	$file=$I->_eval_list( $v, $h, $I->_parse_cached($f) );
 	last;
       }
     }
@@ -459,6 +459,22 @@ sub _eval_control {
     #warn "FOR FOR FOR: ";
     #use Data::Dumper; warn Dumper($nh);
     return $I->_eval_list( $v, $nh, $I->__get_code_list($el) );
+  } elsif( $el->[1] eq 'm' or $el->[1] eq 'macro' ) { # invoke macro
+    my $macro;
+    foreach my $f (@{$el->[2]}) {
+      if( !ref($f) and length($f) ) {
+	$macro=$I->_eval_list( $v, $h, $I->_parse_cached($f) );
+	last;
+      }
+    }
+    unless( exists $I->_macros->{$macro} ) {
+      return $I->_report_error( "<:macro $macro>", "Macro not defined" );
+    }
+    $macro=$I->_macros->{$macro};
+    my $nh=+{$I->_make_include_param_list( $v, $el, $h )};
+    #warn "M M M: ";
+    #use Data::Dumper; warn Dumper($nh);
+    return $I->_eval_list( $v, $nh, @{$macro} );
   } elsif( $el->[1] eq 'eval' ) {
     my $nh=+{$I->_make_include_param_list( $v, $el, $h )};
     my $new_tmpl=$I->_eval_list( $v, $nh, $I->__get_code_list($el) );
@@ -485,6 +501,82 @@ sub _eval_control {
 	}
       }
     }
+  } elsif( $el->[1] eq 'set' ) {
+    my $name;
+    foreach my $f (@{$el->[2]}) {
+      next if( ref($f) );
+      $name=$f;
+      last;
+    }
+    my @l=$I->_make_one_param( $v, $el, $h, [$name=>$el->[3]] );
+    $h->{$l[0]}=$l[1];
+  } elsif( $el->[1] eq 'defmacro' ) { # define macro
+    my $macro;
+    foreach my $f (@{$el->[2]}) {
+      if( !ref($f) and length($f) ) {
+	$macro=$I->_eval_list( $v, $h, $I->_parse_cached($f) );
+	last;
+      }
+    }
+    $I->_macros->{$macro}=[$I->__get_code_list($el)];
+  }
+  return;
+}
+
+sub _make_one_param {
+  my $I=shift;
+  my $v=shift;
+  my $el=shift;
+  my $h=shift;
+  my $p=shift;
+
+  if( ref($p) eq 'ARRAY' ) {
+    my @pp=$I->_parse_cached( $p->[1] );
+    my $pl=[undef];
+    my $array=0;
+    foreach my $ve (@pp) {
+      if( !defined( $ve->[0] ) ) { # text element
+	foreach my $s (@$pl) {
+	  $s.=$ve->[4];
+	}
+	next;
+      }
+      my $x;
+      if( $ve->[0] eq ':' ) { # control element
+	$x=$I->_eval_control( $v, $ve, $h );
+	#use Data::Dumper; warn "_eval_control returns ", Dumper($x);
+      } else {
+	$x=$I->_eval_var( $ve, $h );
+	#use Data::Dumper; warn "_eval_var returns ", Dumper($x);
+      }
+      if( ref($x) eq 'ARRAY' ) {
+	if( @{$pl}==1 and !defined($pl->[0]) ) { # pl is not changed yet
+	  # we can simply set $pl to $x
+	  $pl=$x;
+	} else {
+	  my $npl;
+	  foreach my $s (@$pl) {
+	    foreach my $v (@{$x}) {
+	      push @$npl, $s.$v;
+	    }
+	  }
+	  $pl=$npl;
+	}
+	$array=1;
+	push @{$pl}, undef if( @{$pl}<1 );
+      } else {
+	foreach my $s (@$pl) {
+	  $s.=$x;
+	}
+      }
+    }
+    return ($I->_eval_list( $v, $h,
+			    $I->_parse_cached(defined $p->[0] ? $p->[0] : '') )
+	    =>($array ? $pl : $pl->[0]));
+  } else {
+    if( $p eq ':inherit' or $p eq ':inheritparams' ) {
+      return (%{$h});
+    }
   }
   return;
 }
@@ -510,52 +602,7 @@ sub _make_include_param_list {
       ();
     }
   } $I->_parse_cached( defined $el->[3] ? $el->[3] : '' )) {
-    if( ref($p) eq 'ARRAY' ) {
-      my @pp=$I->_parse_cached( $p->[1] );
-      my $pl=[undef];
-      my $array=0;
-      foreach my $ve (@pp) {
-	if( !defined( $ve->[0] ) ) { # text element
-	  foreach my $s (@$pl) {
-	    $s.=$ve->[4];
-	  }
-	  next;
-	}
-	my $x;
-	if( $ve->[0] eq ':' ) { # control element
-	  $x=$I->_eval_control( $v, $ve, $h );
-	  #use Data::Dumper; warn "_eval_control returns ", Dumper($x);
-	} else {
-	  $x=$I->_eval_var( $ve, $h );
-	  #use Data::Dumper; warn "_eval_var returns ", Dumper($x);
-	}
-	if( ref($x) eq 'ARRAY' ) {
-	  if( @{$pl}==1 and !defined($pl->[0]) ) { # pl is not changed yet
-	    # we can simply set $pl to $x
-	    $pl=$x;
-	  } else {
-	    my $npl;
-	    foreach my $s (@$pl) {
-	      foreach my $v (@{$x}) {
-		push @$npl, $s.$v;
-	      }
-	    }
-	    $pl=$npl;
-	  }
-	  $array=1;
-	  push @{$pl}, undef if( @{$pl}<1 );
-	} else {
-	  foreach my $s (@$pl) {
-	    $s.=$x;
-	  }
-	}
-      }
-      push @res, $p->[0]=>$array ? $pl : $pl->[0];
-    } else {
-      if( $p eq ':inherit' or $p eq ':inheritparams' ) {
-	push @res, %{$h};
-      }
-    }
+    push @res, $I->_make_one_param( $v, $el, $h, $p );
   }
 
   return @res;
@@ -594,9 +641,8 @@ sub evaluate {
   }
   my $h=+{@_};
 
-  $I->_macros={};
+  $I->_macros={} unless( defined $I->_macros );
   my $rc=$I->_eval_list( undef, $h, $I->_parse_cached );
-  undef $I->_macros;
   return $rc;
 }
 

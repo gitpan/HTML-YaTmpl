@@ -9,3 +9,6 @@ Revision history for Perl extension HTML::YaTmpl.
 
 1.2  Sat Nov  1 14:28:04 CET 2003
 	- some OS specific testing
+
+1.3  Fri Nov  7 18:41:27 CET 2003
+	- macros, <:set> outside a <:for> or similar scope.

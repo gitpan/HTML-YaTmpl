@@ -1,5 +1,5 @@
 use warnings;
-use Test::More tests => 33;
+use Test::More tests => 37;
 use HTML::YaTmpl;
 my $t=HTML::YaTmpl->new( onerror=>'die', path=>['templates'] );
 
@@ -707,19 +707,19 @@ x( 'bargain buy',
  /></:set>
  <:code><=goods pre="<table>" post="
  </table>">
- <tr><:for x="<:/>"><=x><td><:/></td></=x></:for><:cond>
+ <tr><:for x="<:/>"><=x><td><:/></td></=x></:for><td><:cond>
  <:case "$v->[1]>150"><b>very expensive</b></:case>
  <:case "$v->[1]<100"><b>bargain</b></:case>
  <:case 1>normal prize</:case>
- </:cond></tr></=goods></:code>
+ </:cond></td></tr></=goods></:code>
  </:for>
 EOF
    <<'EOF' );
  <table>
- <tr><td>apple</td><td>300</td><b>very expensive</b></tr>
- <tr><td>pear</td><td>90</td><b>bargain</b></tr>
- <tr><td>cherry</td><td>82</td><b>bargain</b></tr>
- <tr><td>plum</td><td>120</td>normal prize</tr>
+ <tr><td>apple</td><td>300</td><td><b>very expensive</b></td></tr>
+ <tr><td>pear</td><td>90</td><td><b>bargain</b></td></tr>
+ <tr><td>cherry</td><td>82</td><td><b>bargain</b></td></tr>
+ <tr><td>plum</td><td>120</td><td>normal prize</td></tr>
  </table>
 EOF
 
@@ -774,11 +774,105 @@ EOF
 EOF
    $t->evaluate;
  };
- ok( $@=~/^\QERROR while eval( <:include $dir> ): $msg\E/ or
-     $@=~/^\QERROR while eval( <:include $dir> ): $msg1\E/ ,
+ ok( ($@=~/^\QERROR while eval( <:include $dir> ): $msg\E/ or
+      $@=~/^\QERROR while eval( <:include $dir> ): $msg1\E/),
      'including directory' );
  $t->clear_errors;
 }
+
+x( 'macro bargain buy',
+   <<'EOF',
+ <:defmacro td><td align="center"><=val/></td></:defmacro><#
+ /><:defmacro tr><tr><:for x="<:/>"><#
+ /><=x><:m td val="<:/>"/></=x></:for><:macro td>
+ <:set val><:cond>
+ <:case "$v->[1]>150"><b>very expensive</b></:case>
+ <:case "$v->[1]<100"><b>bargain</b></:case>
+ <:case 1>normal prize</:case>
+ </:cond></:set>
+ </:macro></tr> </:defmacro><#
+ /><:for>
+ <:set goods><:
+ [
+  [apple=>'300'],
+  [pear=>'90'],
+  [cherry=>'82'],
+  [plum=>'120'],
+ ]
+ /></:set>
+ <:code><=goods pre="<table>" post="
+ </table>">
+ <:m tr/></=goods></:code>
+ </:for>
+EOF
+   <<'EOF' );
+ <table>
+ <tr><td align="center">apple</td><td align="center">300</td><td align="center"><b>very expensive</b></td></tr> 
+ <tr><td align="center">pear</td><td align="center">90</td><td align="center"><b>bargain</b></td></tr> 
+ <tr><td align="center">cherry</td><td align="center">82</td><td align="center"><b>bargain</b></td></tr> 
+ <tr><td align="center">plum</td><td align="center">120</td><td align="center">normal prize</td></tr> 
+ </table>
+EOF
+
+x( 'another macro bargain buy',
+   <<'EOF',
+ <:for>
+ <:set goods><:
+ [
+  [apple=>'300'],
+  [pear=>'90'],
+  [cherry=>'82'],
+  [plum=>'120'],
+ ]
+ /></:set>
+ <:code><=goods pre="<table>" post="
+ </table>">
+ <:m tr/></=goods></:code>
+ </:for>
+EOF
+   <<'EOF' );
+ <table>
+ <tr><td align="center">apple</td><td align="center">300</td><td align="center"><b>very expensive</b></td></tr> 
+ <tr><td align="center">pear</td><td align="center">90</td><td align="center"><b>bargain</b></td></tr> 
+ <tr><td align="center">cherry</td><td align="center">82</td><td align="center"><b>bargain</b></td></tr> 
+ <tr><td align="center">plum</td><td align="center">120</td><td align="center">normal prize</td></tr> 
+ </table>
+EOF
+
+x( 'yet another macro bargain buy',
+   <<'EOF',
+ <:set goods><:
+ [
+  [apple=>'300'],
+  [pear=>'90'],
+  [cherry=>'82'],
+  [plum=>'120'],
+ ]
+ /></:set><=goods pre="<table>" post="
+ </table>">
+ <:m tr/></=goods>
+EOF
+   <<'EOF' );
+ <table>
+ <tr><td align="center">apple</td><td align="center">300</td><td align="center"><b>very expensive</b></td></tr> 
+ <tr><td align="center">pear</td><td align="center">90</td><td align="center"><b>bargain</b></td></tr> 
+ <tr><td align="center">cherry</td><td align="center">82</td><td align="center"><b>bargain</b></td></tr> 
+ <tr><td align="center">plum</td><td align="center">120</td><td align="center">normal prize</td></tr> 
+ </table>
+EOF
+
+x( '<:set> inside <:code>',
+   <<'EOF',
+<:for x="<=fruits/>"><:code><=x><:set n><=n>.<:/></=n></:set><=n/> <:/>
+</=x></:code></:for>
+EOF
+   <<'EOF' );
+. apples
+.. pears
+... plums
+.... cherries
+
+EOF
 
 __END__
 

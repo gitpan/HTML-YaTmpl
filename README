@@ -909,11 +909,11 @@ TEMPLATE SYNTAX AND EVALUATION
         9  /></:set>
        10  <:code><=goods pre="<table>" post="
        11  </table>">
-       12  <tr><:for x="<:/>"><=x><td><:/></td></=x></:for><:cond>
+       12  <tr><:for x="<:/>"><=x><td><:/></td></=x><td></:for><:cond>
        13  <:case "$v->[1]>150"><b>very expensive</b></:case>
        14  <:case "$v->[1]<100"><b>bargain</b></:case>
        15  <:case 1>normal prize</:case>
-       16  </:cond></tr></=goods></:code>
+       16  </:cond></td></tr></=goods></:code>
        17  </:for>
 
       generates a table of goods marking a few of them as very expensive or
@@ -955,8 +955,74 @@ TEMPLATE SYNTAX AND EVALUATION
       Now the "<:cond>" at line 1 names "link". Thus $link can be used at
       line 2 in the "<:case:" condition.
 
+    <:m name .../> or <:m file>...</:m> or =item <:macro name .../> or
+    <:macro file>...</:macro> =item <:defmacro name>...</:defmacro>
+      "<:defmacro>" defines a macro. For example, one can define a macro as
+
+       <:defmacro td><td align="center"><=val/></td></:defmacro>
+
+      Later on it can be invoked as
+
+       <:m td val="..."/> or <:macro td val="..."/>
+
+      Our previous example then can be written as
+
+        1  <:defmacro td><td align="center"><=val/></td></:defmacro><#
+        2  /><:defmacro tr><tr><:for x="<:/>"><#
+        3  /><=x><:m td val="<:/>"/></=x></:for><:macro td>
+        4  <:set val><:cond>
+        5  <:case "$v->[1]>150"><b>very expensive</b></:case>
+        6  <:case "$v->[1]<100"><b>bargain</b></:case>
+        7  <:case 1>normal prize</:case>
+        8  </:cond></:set>
+        9  </:macro></tr> </:defmacro><#
+       10  /><:for>
+       11  <:set goods><:
+       12  [
+       13   [apple=>'300'],
+       14   [pear=>'90'],
+       15   [cherry=>'82'],
+       16   [plum=>'120'],
+       17  ]
+       18  /></:set>
+       19  <:code><=goods pre="<table>" post="
+       20  </table>">
+       21  <:m tr/></=goods></:code>
+       22  </:for>
+
+      Line 1 defines a macro named "td" that prints one HTML table cell. It
+      uses the variable "val". Lines 2 to 9 define a macro called "tr" that
+      implements a table row. It is designed to be used in a substitution
+      scope as it assigns the current value "<:/>" to a variable "x" to
+      build a "<:for>" scope. In line 3 the macro defined in line 1 is used
+      twice, once as "<:m/>" and once as "<:macro>". Then in line 21 the
+      "tr" macro is invoked and generates all table rows.
+
+      Macros are bound to a "HTML::YaTmpl" instance. That means you can
+      define a set of macros in one template, evaluate it and then evaluate
+      another template with the same instance using macros defined in the
+      first template.
+
     <:set></:set>
-      see "<:for>" statement above.
+      is used to make up the parameter list for "<:for>", "<:eval>",
+      "<:include>" and "<:macro>" statements. Outside one of these scopes or
+      inside a "<:code>" segment "<:set>" can be used to manipulate the
+      current parameter list.
+
+      Thus, the example above can be rewritten as:
+
+        1  <:set goods><:
+        2  [
+        3   [apple=>'300'],
+        4   [pear=>'90'],
+        5   [cherry=>'82'],
+        6   [plum=>'120'],
+        7  ]
+        8  /></:set><=goods pre="<table>" post="
+        9  </table>">
+       10  <:m tr/></=goods>
+
+      reusing the macros as described above.
 
 Commenting templates
     Writing templates is very similar to writing programs. And as programs
@@ -1054,10 +1120,6 @@ TODO
     * Since our parse function can parse our templates why not use it to
       read configuration files or even files that contain data to be filled
       in other templates?
-
-    * more control elements. Particularly it is useful to have a macro
-      definition and invocation functionality and set, change and delete
-      values from within a template.
 
     * output options: filters, gzip compression, ...
 
