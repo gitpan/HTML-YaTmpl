@@ -128,6 +128,21 @@ DESCRIPTION
       evaluate_to_file() returns false if something went wrong, e.g. no
       space left on device or no permission to write the file.
 
+  Configuration File Evaluation Methods
+    evaluate_as_config($private_data, key1=>$val1, key2=>$val2, ...)
+      This function is similar to evaluate(). However, it treats the
+      template as some kind of configuration file. Here is an example how it
+      works. Given the template:
+
+       <=key1>Value1</=key1>
+       <=key2>Value2</=key2>
+
+      evaluate_as_config() will return an hash reference:
+
+       { key1=>'Value1', key2=>'Value2' }
+
+      Note, this function is experimental.
+
   Cache Management Methods
     "HTML::YaTmpl" uses a cache to avoid multiple compilation of the same
     code fragment or multiple parsing of the same template. Simply hashing

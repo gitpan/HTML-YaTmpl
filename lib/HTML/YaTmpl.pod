@@ -165,6 +165,27 @@ write the file.
 
 =back
 
+=head2 Configuration File Evaluation Methods
+
+=over 2
+
+=item B<evaluate_as_config($private_data, key1=E<gt>$val1, key2=E<gt>$val2, ...)>
+
+This function is similar to evaluate(). However, it treats the template
+as some kind of configuration file. Here is an example how it works. Given
+the template:
+
+ <=key1>Value1</=key1>
+ <=key2>Value2</=key2>
+
+evaluate_as_config() will return an hash reference:
+
+ { key1=>'Value1', key2=>'Value2' }
+
+B<Note>, this function is experimental.
+
+=back
+
 =head2 Cache Management Methods
 
 C<HTML::YaTmpl> uses a cache to avoid multiple compilation of the same

@@ -10,7 +10,7 @@ use IO::File ();
 use File::Spec ();
 use Errno ();
 
-our $VERSION='1.4';
+our $VERSION='1.5';
 
 #$SIG{INT}=sub {
 #  use Carp 'cluck';
@@ -633,7 +633,29 @@ sub _eval_list {
       } else {
 	$res.=$el;
       }
-      #$res.=$I->_eval_var( $el, $h );
+    }
+  }
+  return $res;
+}
+
+sub evaluate_as_config {
+  my $I=shift;
+  if( @_%2 ) {
+    $I->_extra=shift;
+  } else {
+    $I->_extra={};
+  }
+  my $h=+{@_};
+
+  my $res={};
+
+  $I->_macros={} unless( defined $I->_macros );
+  foreach my $el ($I->_parse_cached) {
+    if( !defined( $el->[0] ) ) { # text element: skip
+    } elsif( $el->[0] eq ':' ) { # control element: eval but ignore result
+      $I->_eval_control( undef, $el, $h );
+    } else {			# variable element
+      $res->{$el->[1]}=$I->_eval_var( $el, $h );
     }
   }
   return $res;
